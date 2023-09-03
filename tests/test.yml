@@ -1,0 +1,7 @@
+# code: language=ansible
+---
+- name: Install fish on localhost
+  hosts: localhost
+  remote_user: root
+  roles:
+    - rehanone.git

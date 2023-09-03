@@ -1,0 +1,21 @@
+# code: language=ansible
+---
+# Allows logging of the final configuration dictionary with all defaulted values which can be helpful for debugging
+# Default value for debug is false
+git_debug: false
+
+git_upstream_manage: false
+
+# Whether or not to install or remove upstream git package repository
+# choices: [ present, absent ]
+# default: present
+git_upstream_state: present
+git_upstream_repository: ''
+
+git_package_manage: true
+
+# Whether or not to install or remove git package
+# choices: [ present, absent ]
+# default: present
+git_package_state: present
+git_package_name: git

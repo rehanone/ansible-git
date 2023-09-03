@@ -1,0 +1,33 @@
+# code: language=ansible
+---
+# Defaults for git user config
+git_default_gitconfig:
+  color:
+    ui: true
+  push:
+    default: simple
+  pull:
+    ff: only
+  fetch:
+    prune: true
+  init:
+    defaultBranch: master
+
+# Defaults for git user profile
+git_user_defaults:
+  manage: true
+  state: present
+  gitconfig: '{{ git_default_gitconfig }}'
+
+# Defaults dictionary for git role
+git_defaults:
+  debug: '{{ git_debug }}'
+  upstream:
+    repository: '{{ git_upstream_repository }}'
+    state: '{{ git_upstream_state }}'
+    manage: '{{ git_upstream_manage }}'
+  package:
+    name: '{{ git_package_name }}'
+    state: '{{ git_package_state }}'
+    manage: '{{ git_package_manage }}'
+  users: []

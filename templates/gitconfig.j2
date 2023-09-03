@@ -1,0 +1,12 @@
+# HEADER: This file is managed by Ansible; changes to this file will be overwritten.
+
+[user]
+  email =  {{ email }}
+  name = {{ fullname }}
+
+{% for section in config %}
+[{{ section }}]
+{% for item in config[section] %}
+  {{ item }} = {{ config[section][item] | lower }}
+{% endfor %}
+{% endfor %}
