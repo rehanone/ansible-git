@@ -1,0 +1,4 @@
+# code: language=ansible
+---
+- name: Main git tasks
+  ansible.builtin.include_tasks: git.yml

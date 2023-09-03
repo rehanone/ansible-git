@@ -1,0 +1,4 @@
+# code: language=ansible
+---
+git_upstream_manage: true
+git_upstream_repository: 'ppa:git-core/ppa'

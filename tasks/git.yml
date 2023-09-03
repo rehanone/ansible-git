@@ -1,0 +1,86 @@
+# code: language=ansible
+---
+# Main tasks file for role
+- name: Setting OS variables
+  ansible.builtin.include_vars: "{{ lookup('ansible.builtin.first_found', params) }}"
+  vars:
+    params:
+      files:
+        - "{{ ansible_facts.distribution }}.yml"
+        - default.yml
+      paths:
+        - vars/distribution
+
+- name: Set git_users_with_defaults
+  ansible.builtin.set_fact:
+    git_users_with_defaults: >-
+      {{
+          git_users_with_defaults | default([]) |
+          union( [git_user_defaults | ansible.builtin.combine(user, recursive=true)] )
+      }}
+  loop: '{{ git.users }}'
+  loop_control:
+    loop_var: user
+    label: '{{ user.name }}'
+
+- name: Set git_with_default_users
+  ansible.builtin.set_fact:
+    git_with_default_users:
+      users: '{{ git_users_with_defaults }}'
+
+- name: Set git_config
+  ansible.builtin.set_fact:
+    git_config: >-
+      {{ git_defaults |
+        ansible.builtin.combine( (git | default(git_defaults)), recursive=true ) |
+        ansible.builtin.combine( git_with_default_users, recursive=true )
+      }}
+
+- name: Print git_config dictionary if debug flag is set
+  ansible.builtin.debug:
+    var: git_config
+  when: git_config.debug
+
+- name: Add git stable repository from PPA and install its signing key on Ubuntu target
+  ansible.builtin.apt_repository:
+    repo: '{{ git_config.upstream.repository }}'
+    state: '{{ git_config.upstream.state }}'
+  when: git_config.upstream.manage
+
+# Setup package
+- name: 'Setup | package {{ git_config.package.name }}'
+  ansible.builtin.package:
+    name: '{{ git_config.package.name }}'
+    state: '{{ git_config.package.state }}'
+  when: git_config.package.manage
+
+- name: Create git config file for users
+  become: true
+  become_user: '{{ user.name }}'
+  ansible.builtin.template:
+    src: gitconfig.j2
+    dest: '~{{ user.name }}/.gitconfig'
+    owner: '{{ user.name }}'
+    group: '{{ user.name }}'
+    mode: '0644'
+  vars:
+    fullname: '{{ user.fullname }}'
+    email: '{{ user.email }}'
+    config: '{{ user.gitconfig }}'
+  when: user.state == 'present' and user.manage
+  loop: "{{ git_config.users | flatten(levels=1) }}"
+  loop_control:
+    loop_var: user
+    label: "{{ user.name }}"
+
+- name: Remove git config file for users
+  become: true
+  become_user: '{{ user.name }}'
+  ansible.builtin.file:
+    path: '~{{ user.name }}/.gitconfig'
+    state: absent
+  when: user.state == 'absent' and user.manage
+  loop: "{{ git_config.users | flatten(levels=1) }}"
+  loop_control:
+    loop_var: user
+    label: "{{ user.name }}"
