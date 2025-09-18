@@ -248,3 +248,5 @@ local.properties
 __pycache__
 .cache
 .molecule
+
+.ansible
