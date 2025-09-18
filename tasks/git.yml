@@ -18,7 +18,7 @@
           git_users_with_defaults | default([]) |
           union( [git_user_defaults | ansible.builtin.combine(user, recursive=true)] )
       }}
-  loop: '{{ git.users }}'
+  loop: '{{ git.users | default([]) }}'
   loop_control:
     loop_var: user
     label: '{{ user.name }}'
@@ -26,7 +26,7 @@
 - name: Set git_with_default_users
   ansible.builtin.set_fact:
     git_with_default_users:
-      users: '{{ git_users_with_defaults }}'
+      users: '{{ git_users_with_defaults | default([]) }}'
 
 - name: Set git_config
   ansible.builtin.set_fact:
