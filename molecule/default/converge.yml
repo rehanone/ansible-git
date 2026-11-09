@@ -1,0 +1,29 @@
+# code: language=ansible
+---
+- name: Converge
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Apply git role
+      ansible.builtin.include_role:
+        name: rehanone.git
+      vars:
+        git:
+          upstream:
+            manage: true
+            repository: 'ppa:git-core/ppa'
+            state: present
+          package:
+            manage: true
+            state: present
+          users:
+            - name: git_test
+              fullname: Git Test User
+              email: git-test@example.com
+              gitconfig:
+                core:
+                  editor: Vim
+                init:
+                  defaultBranch: Main
+            - name: git_absent
+              state: absent

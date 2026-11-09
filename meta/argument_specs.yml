@@ -1,0 +1,40 @@
+# code: language=ansible
+---
+argument_specs:
+  main:
+    short_description: Install git and manage per-user git configuration.
+    description:
+      - Installs the git package, optionally from an upstream repository, and
+        writes or removes per-user C(~/.gitconfig) files.
+    options:
+      git:
+        type: dict
+        description:
+          - Nested role configuration. See the role README for supported keys.
+      git_debug:
+        type: bool
+        description: Print the fully merged configuration when true.
+      git_upstream_manage:
+        type: bool
+        description: Whether to manage the upstream package repository.
+      git_upstream_state:
+        type: str
+        choices:
+          - present
+          - absent
+        description: Desired state of the upstream package repository.
+      git_upstream_repository:
+        type: str
+        description: Upstream repository definition, for example C(ppa:git-core/ppa).
+      git_package_manage:
+        type: bool
+        description: Whether to manage the git package.
+      git_package_state:
+        type: str
+        choices:
+          - present
+          - absent
+        description: Desired state of the git package.
+      git_package_name:
+        type: str
+        description: Name of the git package to manage.

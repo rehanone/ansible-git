@@ -1,0 +1,32 @@
+# code: language=ansible
+---
+driver:
+  name: docker
+
+platforms:
+  - name: ansible-git-ubuntu-jammy-absent
+    image: ubuntu:jammy
+    pre_build_image: true
+
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "../../.ansible/roles:~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles"
+  config_options:
+    defaults:
+      interpreter_python: auto_silent
+
+verifier:
+  name: ansible
+
+scenario:
+  name: absent
+  test_sequence:
+    - destroy
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - side_effect
+    - verify
+    - destroy

@@ -6,3 +6,8 @@ requests
 PyYAML
 cryptography
 netaddr
+
+ansible-core>=2.15
+ansible-lint>=25
+molecule>=26,<27
+molecule-plugins[docker]>=26,<27

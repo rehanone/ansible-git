@@ -1,2 +1,7 @@
+# code: language=ansible
 ---
-# handlers file for ansible-git
+- name: Update git upstream apt cache
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 0

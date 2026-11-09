@@ -1,0 +1,35 @@
+# code: language=ansible
+---
+- name: Prepare
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Install python3
+      ansible.builtin.raw: >-
+        apt-get update &&
+        DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-apt sudo
+      changed_when: false
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+    - name: Create test users
+      become: true
+      ansible.builtin.user:
+        name: '{{ item }}'
+        create_home: true
+        shell: /bin/bash
+      loop:
+        - git_test
+        - git_absent
+
+    - name: Seed gitconfig for absent user
+      become: true
+      ansible.builtin.copy:
+        content: |
+          [user]
+            name = Should Be Removed
+        dest: /home/git_absent/.gitconfig
+        owner: git_absent
+        group: git_absent
+        mode: '0644'
