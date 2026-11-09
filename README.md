@@ -13,6 +13,9 @@ Requirements
 
 This role requires `git`  package to be avalible in package manager on the target system.
 
+It also requires `ansible-core` 2.15 or newer, as the Ubuntu upstream `ppa` is
+managed with `ansible.builtin.deb822_repository`.
+
 Example Playbook
 ----------------
 

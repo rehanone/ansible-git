@@ -41,11 +41,77 @@
     var: git_config
   when: git_config.debug
 
-- name: Add git stable repository from PPA and install its signing key on Ubuntu target
-  ansible.builtin.apt_repository:
-    repo: '{{ git_config.upstream.repository }}'
-    state: '{{ git_config.upstream.state }}'
-  when: git_config.upstream.manage
+- name: Install deb822 repository support packages
+  become: true
+  ansible.builtin.apt:
+    name:
+      - python3-debian
+      - ca-certificates
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  when:
+    - git_config.upstream.manage
+    - git_config.upstream.repository is match('^ppa:')
+    - ansible_facts.os_family == 'Debian'
+
+- name: Set upstream PPA details
+  ansible.builtin.set_fact:
+    git_upstream_ppa_owner: >-
+      {{ (git_config.upstream.repository | regex_replace('^ppa:', '')).split('/')[0] }}
+    git_upstream_ppa_name: >-
+      {{ (git_config.upstream.repository | regex_replace('^ppa:', '')).split('/')[1] | default('ppa') }}
+  when:
+    - git_config.upstream.manage
+    - git_config.upstream.repository is match('^ppa:')
+    - ansible_facts.os_family == 'Debian'
+
+- name: Look up upstream PPA signing key
+  ansible.builtin.uri:
+    url: >-
+      https://api.launchpad.net/1.0/~{{ git_upstream_ppa_owner }}/+archive/{{ git_upstream_ppa_name }}
+    headers:
+      Accept: application/json
+  register: git_upstream_ppa_info
+  when:
+    - git_config.upstream.manage
+    - git_config.upstream.repository is match('^ppa:')
+    - ansible_facts.os_family == 'Debian'
+
+- name: Manage git stable repository from PPA
+  become: true
+  ansible.builtin.deb822_repository:
+    name: "{{ git_upstream_ppa_owner }}-{{ git_upstream_ppa_name }}"
+    types:
+      - deb
+    uris:
+      - >-
+        https://ppa.launchpadcontent.net/{{ git_upstream_ppa_owner }}/{{ git_upstream_ppa_name }}/ubuntu
+    suites:
+      - "{{ ansible_facts.distribution_release }}"
+    components:
+      - main
+    signed_by: >-
+      https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x{{
+      git_upstream_ppa_info.json.signing_key_fingerprint }}
+    state: "{{ git_config.upstream.state }}"
+  register: git_upstream_repo_result
+  when:
+    - git_config.upstream.manage
+    - git_config.upstream.repository is match('^ppa:')
+    - ansible_facts.os_family == 'Debian'
+
+- name: Update apt cache after upstream repository changes
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 0
+  changed_when: false
+  when:
+    - git_config.upstream.manage
+    - git_config.upstream.repository is match('^ppa:')
+    - ansible_facts.os_family == 'Debian'
+    - git_upstream_repo_result is changed
 
 # Setup package
 - name: 'Setup | package {{ git_config.package.name }}'
