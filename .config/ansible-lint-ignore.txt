@@ -1,1 +1,4 @@
 .github/workflows/ansible-lint.yml yaml[truthy]
+
+# Galaxy's platform metadata lags current upstream OS releases.
+meta/main.yml schema[meta] skip
