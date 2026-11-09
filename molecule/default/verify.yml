@@ -1,0 +1,70 @@
+# code: language=ansible
+---
+- name: Verify
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Check git binary
+      ansible.builtin.stat:
+        path: /usr/bin/git
+      register: git_binary
+
+    - name: Verify git is installed
+      ansible.builtin.assert:
+        that:
+          - git_binary.stat.exists
+          - git_binary.stat.executable
+
+    - name: Read managed user gitconfig
+      ansible.builtin.slurp:
+        src: /home/git_test/.gitconfig
+      register: git_test_gitconfig
+
+    - name: Verify managed user gitconfig
+      ansible.builtin.assert:
+        that:
+          - "'name = Git Test User' in (git_test_gitconfig.content | b64decode)"
+          - "'email = git-test@example.com' in (git_test_gitconfig.content | b64decode)"
+          - "'editor = Vim' in (git_test_gitconfig.content | b64decode)"
+          - "'defaultBranch = Main' in (git_test_gitconfig.content | b64decode)"
+          - "'prune = true' in (git_test_gitconfig.content | b64decode)"
+          - "'default = simple' in (git_test_gitconfig.content | b64decode)"
+          - "'ff = only' in (git_test_gitconfig.content | b64decode)"
+          - "'ui = true' in (git_test_gitconfig.content | b64decode)"
+
+    - name: Check removed user gitconfig
+      ansible.builtin.stat:
+        path: /home/git_absent/.gitconfig
+      register: git_absent_gitconfig
+
+    - name: Verify removed user gitconfig
+      ansible.builtin.assert:
+        that:
+          - not git_absent_gitconfig.stat.exists
+
+    - name: Check upstream repository file
+      ansible.builtin.stat:
+        path: /etc/apt/sources.list.d/git-core-ppa.sources
+      register: git_ppa_sources
+
+    - name: Read upstream repository file
+      ansible.builtin.slurp:
+        src: /etc/apt/sources.list.d/git-core-ppa.sources
+      register: git_ppa_sources_content
+
+    - name: Verify upstream repository
+      ansible.builtin.assert:
+        that:
+          - git_ppa_sources.stat.exists
+          - "'ppa.launchpadcontent.net/git-core/ppa/ubuntu' in (git_ppa_sources_content.content | b64decode)"
+          - "'Signed-By: /etc/apt/keyrings/git-core-ppa.asc' in (git_ppa_sources_content.content | b64decode)"
+
+    - name: Check upstream repository key
+      ansible.builtin.stat:
+        path: /etc/apt/keyrings/git-core-ppa.asc
+      register: git_ppa_key
+
+    - name: Verify upstream repository key
+      ansible.builtin.assert:
+        that:
+          - git_ppa_key.stat.exists

@@ -1,3 +1,17 @@
+## 0.0.3 (November 08, 2026)
+
+**Features:**
+
+- Add Molecule scenarios for the present and absent states, and a GitHub
+  Actions workflow to run them.
+
+**Fixes:**
+
+- Preserve case in git configuration values; only booleans are normalised.
+- Validate user names, duplicate users, and required `fullname`/`email` values.
+- Make the upstream signing-key download idempotent.
+- Add runtime metadata and role argument specs.
+
 ## 0.0.2 (November 08, 2026)
 
 **Fixes:**

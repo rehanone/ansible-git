@@ -7,21 +7,26 @@
     params:
       files:
         - "{{ ansible_facts.distribution }}.yml"
+        - "{{ ansible_facts.os_family }}.yml"
         - default.yml
       paths:
         - vars/distribution
+
+- name: Initialize git_users_with_defaults
+  ansible.builtin.set_fact:
+    git_users_with_defaults: []
 
 - name: Set git_users_with_defaults
   ansible.builtin.set_fact:
     git_users_with_defaults: >-
       {{
-          git_users_with_defaults | default([]) |
-          union( [git_user_defaults | ansible.builtin.combine(user, recursive=true)] )
+        git_users_with_defaults +
+        [git_user_defaults | ansible.builtin.combine(user, recursive=true)]
       }}
   loop: '{{ git.users | default([]) }}'
   loop_control:
     loop_var: user
-    label: '{{ user.name }}'
+    label: '{{ user.name | default("unnamed") }}'
 
 - name: Set git_with_default_users
   ansible.builtin.set_fact:
@@ -39,79 +44,139 @@
 - name: Print git_config dictionary if debug flag is set
   ansible.builtin.debug:
     var: git_config
-  when: git_config.debug
+  when: git_config.debug | bool
 
-- name: Install deb822 repository support packages
-  become: true
-  ansible.builtin.apt:
-    name:
-      - python3-debian
-      - ca-certificates
-    state: present
-    update_cache: true
-    cache_valid_time: 3600
-  when:
-    - git_config.upstream.manage
-    - git_config.upstream.repository is match('^ppa:')
-    - ansible_facts.os_family == 'Debian'
+- name: Validate git users have names
+  ansible.builtin.assert:
+    that:
+      - user.name is defined
+      - user.name | length > 0
+    fail_msg: "Each item in git.users must define a non-empty name"
+  loop: '{{ git_config.users }}'
+  loop_control:
+    loop_var: user
+    label: '{{ user.name | default("unnamed") }}'
 
-- name: Set upstream PPA details
-  ansible.builtin.set_fact:
-    git_upstream_ppa_owner: >-
-      {{ (git_config.upstream.repository | regex_replace('^ppa:', '')).split('/')[0] }}
-    git_upstream_ppa_name: >-
-      {{ (git_config.upstream.repository | regex_replace('^ppa:', '')).split('/')[1] | default('ppa') }}
-  when:
-    - git_config.upstream.manage
-    - git_config.upstream.repository is match('^ppa:')
-    - ansible_facts.os_family == 'Debian'
-
-- name: Look up upstream PPA signing key
-  ansible.builtin.uri:
-    url: >-
-      https://api.launchpad.net/1.0/~{{ git_upstream_ppa_owner }}/+archive/{{ git_upstream_ppa_name }}
-    headers:
-      Accept: application/json
-  register: git_upstream_ppa_info
-  when:
-    - git_config.upstream.manage
-    - git_config.upstream.repository is match('^ppa:')
-    - ansible_facts.os_family == 'Debian'
-
-- name: Manage git stable repository from PPA
-  become: true
-  ansible.builtin.deb822_repository:
-    name: "{{ git_upstream_ppa_owner }}-{{ git_upstream_ppa_name }}"
-    types:
-      - deb
-    uris:
+- name: Validate git user names are unique
+  ansible.builtin.assert:
+    that:
       - >-
-        https://ppa.launchpadcontent.net/{{ git_upstream_ppa_owner }}/{{ git_upstream_ppa_name }}/ubuntu
-    suites:
-      - "{{ ansible_facts.distribution_release }}"
-    components:
-      - main
-    signed_by: >-
-      https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x{{
-      git_upstream_ppa_info.json.signing_key_fingerprint }}
-    state: "{{ git_config.upstream.state }}"
-  register: git_upstream_repo_result
-  when:
-    - git_config.upstream.manage
-    - git_config.upstream.repository is match('^ppa:')
-    - ansible_facts.os_family == 'Debian'
+        git_config.users | map(attribute='name') | list | length ==
+        git_config.users | map(attribute='name') | list | unique | length
+    fail_msg: "Each git user name must be unique"
+  when: git_config.users | length > 0
 
-- name: Update apt cache after upstream repository changes
-  become: true
-  ansible.builtin.apt:
-    update_cache: true
-    cache_valid_time: 0
-  changed_when: false
+- name: Validate required user details for managed present users
+  ansible.builtin.assert:
+    that:
+      - user.fullname is defined
+      - user.fullname | length > 0
+      - user.email is defined
+      - user.email | length > 0
+    fail_msg: >-
+      User '{{ user.name }}' must define non-empty fullname and email values
+      when state is present and manage is true
+  loop: '{{ git_config.users }}'
+  loop_control:
+    loop_var: user
+    label: '{{ user.name }}'
   when:
-    - git_config.upstream.manage
+    - user.state == 'present'
+    - user.manage | bool
+
+- name: Manage upstream git package repository
+  when:
+    - git_config.upstream.manage | bool
     - git_config.upstream.repository is match('^ppa:')
     - ansible_facts.os_family == 'Debian'
-    - git_upstream_repo_result is changed
+  block:
+    - name: Install deb822 repository support packages
+      become: true
+      ansible.builtin.apt:
+        name:
+          - python3-debian
+          - ca-certificates
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Set upstream PPA details
+      ansible.builtin.set_fact:
+        git_upstream_ppa_owner: >-
+          {{ (git_config.upstream.repository | regex_replace('^ppa:', '')).split('/')[0] }}
+        git_upstream_ppa_name: >-
+          {{ (git_config.upstream.repository | regex_replace('^ppa:', '')).split('/')[1] | default('ppa') }}
+
+    - name: Validate upstream PPA repository
+      ansible.builtin.assert:
+        that:
+          - git_upstream_ppa_owner | length > 0
+          - git_upstream_ppa_name | length > 0
+        fail_msg: >-
+          git.upstream.repository must be a valid PPA, for example
+          'ppa:git-core/ppa'
+
+    - name: Look up upstream PPA signing key
+      ansible.builtin.uri:
+        url: >-
+          https://api.launchpad.net/1.0/~{{ git_upstream_ppa_owner }}/+archive/{{ git_upstream_ppa_name }}
+        headers:
+          Accept: application/json
+      register: git_upstream_ppa_info
+
+    - name: Validate upstream PPA signing key
+      ansible.builtin.assert:
+        that:
+          - git_upstream_ppa_info.json.signing_key_fingerprint | default('') | length > 0
+        fail_msg: >-
+          Unable to resolve the signing key for
+          {{ git_config.upstream.repository }}
+
+    - name: Ensure apt keyrings directory exists
+      become: true
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Check upstream PPA signing key
+      ansible.builtin.stat:
+        path: "/etc/apt/keyrings/{{ git_upstream_ppa_owner }}-{{ git_upstream_ppa_name }}.asc"
+      register: git_upstream_key
+
+    - name: Download upstream PPA signing key
+      become: true
+      ansible.builtin.get_url:
+        url: >-
+          https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x{{
+          git_upstream_ppa_info.json.signing_key_fingerprint }}
+        dest: "/etc/apt/keyrings/{{ git_upstream_ppa_owner }}-{{ git_upstream_ppa_name }}.asc"
+        mode: '0644'
+      when:
+        - git_config.upstream.state == 'present'
+        - not git_upstream_key.stat.exists
+
+    - name: Manage git stable repository from PPA
+      become: true
+      ansible.builtin.deb822_repository:
+        name: "{{ git_upstream_ppa_owner }}-{{ git_upstream_ppa_name }}"
+        types:
+          - deb
+        uris:
+          - >-
+            https://ppa.launchpadcontent.net/{{ git_upstream_ppa_owner }}/{{ git_upstream_ppa_name }}/ubuntu
+        suites:
+          - "{{ ansible_facts.distribution_release }}"
+        components:
+          - main
+        signed_by: "/etc/apt/keyrings/{{ git_upstream_ppa_owner }}-{{ git_upstream_ppa_name }}.asc"
+        state: "{{ git_config.upstream.state }}"
+      notify: Update git upstream apt cache
+
+- name: Flush handlers before installing packages
+  ansible.builtin.meta: flush_handlers
 
 # Setup package
 - name: 'Setup | package {{ git_config.package.name }}'
@@ -119,7 +184,7 @@
   ansible.builtin.package:
     name: '{{ git_config.package.name }}'
     state: '{{ git_config.package.state }}'
-  when: git_config.package.manage
+  when: git_config.package.manage | bool
 
 - name: Create git config file for users
   become: true
@@ -133,19 +198,23 @@
     fullname: '{{ user.fullname }}'
     email: '{{ user.email }}'
     config: '{{ user.gitconfig }}'
-  when: user.state == 'present' and user.manage
-  loop: "{{ git_config.users | flatten(levels=1) }}"
+  when:
+    - user.state == 'present'
+    - user.manage | bool
+  loop: '{{ git_config.users }}'
   loop_control:
     loop_var: user
-    label: "{{ user.name }}"
+    label: '{{ user.name }}'
 
 - name: Remove git config file for users
   become: true
   ansible.builtin.file:
     path: '~{{ user.name }}/.gitconfig'
     state: absent
-  when: user.state == 'absent' and user.manage
-  loop: "{{ git_config.users | flatten(levels=1) }}"
+  when:
+    - user.state == 'absent'
+    - user.manage | bool
+  loop: '{{ git_config.users }}'
   loop_control:
     loop_var: user
-    label: "{{ user.name }}"
+    label: '{{ user.name }}'

@@ -1,0 +1,18 @@
+# code: language=ansible
+---
+- name: Converge
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Install git and the upstream repository
+      ansible.builtin.include_role:
+        name: rehanone.git
+      vars:
+        git:
+          upstream:
+            manage: true
+            repository: 'ppa:git-core/ppa'
+            state: present
+          package:
+            manage: true
+            state: present

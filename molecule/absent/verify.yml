@@ -1,0 +1,35 @@
+# code: language=ansible
+---
+- name: Verify
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Check git binary
+      ansible.builtin.stat:
+        path: /usr/bin/git
+      register: git_binary
+
+    - name: Verify git is absent
+      ansible.builtin.assert:
+        that:
+          - not git_binary.stat.exists
+
+    - name: Check upstream repository file
+      ansible.builtin.stat:
+        path: /etc/apt/sources.list.d/git-core-ppa.sources
+      register: git_ppa_sources
+
+    - name: Verify upstream repository file is absent
+      ansible.builtin.assert:
+        that:
+          - not git_ppa_sources.stat.exists
+
+    - name: Check upstream repository key
+      ansible.builtin.stat:
+        path: /etc/apt/keyrings/git-core-ppa.asc
+      register: git_ppa_key
+
+    - name: Verify upstream repository key is absent
+      ansible.builtin.assert:
+        that:
+          - not git_ppa_key.stat.exists

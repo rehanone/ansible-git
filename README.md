@@ -11,7 +11,7 @@ More information on `git` shell can be found at:
 Requirements
 ------------
 
-This role requires `git`  package to be avalible in package manager on the target system.
+This role installs the `git` package using the target system's package manager.
 
 It also requires `ansible-core` 2.15 or newer, as the Ubuntu upstream `ppa` is
 managed with `ansible.builtin.deb822_repository`.
@@ -70,6 +70,27 @@ This example shows all minimum required options for using this role.
           - name: ray
             email: 'test@example.com'
             fullname: 'Rehan Mahmood'
+```
+
+Testing
+-------
+
+The role uses Molecule with the Docker driver. Install the test dependencies and
+run the scenarios:
+
+```bash
+python3 -m pip install -r .config/requirements.txt
+molecule test --all
+```
+
+The `default` scenario covers installing git from the Ubuntu upstream `ppa` and
+managing per-user `~/.gitconfig` files. The `absent` scenario covers removing the
+package and the upstream repository.
+
+Lint the role from the repository root with:
+
+```bash
+ansible-lint
 ```
 
 License
