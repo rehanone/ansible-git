@@ -1,0 +1,8 @@
+# List of Python packages required by your Ansible module
+# Each line specifies a package and optionally its version
+# Format: package_name==version_number or package_name>=version_number
+
+requests
+PyYAML
+cryptography
+netaddr
