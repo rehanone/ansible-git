@@ -1,3 +1,10 @@
+## 0.0.4 (November 09, 2026)
+
+**Features:**
+
+- Update the supported platform matrix for current EL, Fedora, openSUSE,
+  Ubuntu, Debian, and FreeBSD releases.
+
 ## 0.0.3 (November 08, 2026)
 
 **Features:**

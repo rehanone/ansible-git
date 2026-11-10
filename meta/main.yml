@@ -12,27 +12,32 @@ galaxy_info:
     - name: EL
       versions:
         - '8'
+        - '9'
+        - '10'
     - name: Fedora
       versions:
-        - '35'
-        - '36'
+        - '43'
+        - '44'
+        - '45'
     - name: opensuse
       versions:
-        - '15.4'
+        - '16.0'
+        - '16.1'
     - name: Ubuntu
       versions:
-        - bionic
-        - focal
         - jammy
+        - noble
+        - resolute
+        - stonking
     - name: Debian
       versions:
-        - buster
-        - bullseye
         - bookworm
+        - trixie
     - name: FreeBSD
       versions:
-        - '13.0'
-        - '14.0'
+        - '14.4'
+        - '14.5'
+        - '15.1'
   galaxy_tags:
     - git
     - vcs
